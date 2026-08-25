@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets live in the macOS Keychain, never on disk. These entries are a
+# backstop so a stray file can never be committed.
+.env
+.env.*
+!.env.example
+
+# Local data - out of scope for this project's tooling.
+data/
