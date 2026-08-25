@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>__LABEL__</string>
+
+    <!-- uv runs with the no-sync flag: dependency resolution belongs to the
+         deploy script, not to every boot. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__UV__</string>
+        <string>run</string>
+        <string>--directory</string>
+        <string>__APP_DIR__</string>
+        <string>--no-sync</string>
+        <string>python</string>
+        <string>-m</string>
+        <string>app.serve</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__APP_DIR__</string>
+
+    <!-- Start at login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart on abnormal exit only. A clean exit(0) is how the preflight
+         says "the Keychain master key is missing, do not bother retrying" -
+         see app/serve.py. -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Do not respawn faster than this, so a crash loop stays readable. -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/agent.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__PATH__</string>
+        <key>LINE_AI_HOST</key>
+        <string>127.0.0.1</string>
+        <key>LINE_AI_PORT</key>
+        <string>__PORT__</string>
+        <key>LINE_AI_LOG_LEVEL</key>
+        <string>INFO</string>
+    </dict>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

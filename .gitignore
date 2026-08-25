@@ -11,5 +11,8 @@ __pycache__/
 .env.*
 !.env.example
 
-# Local data - out of scope for this project's tooling.
+# Encrypted personal data. Never committed.
 data/
+
+# Local deploy overrides (public hostname, port). No secrets - those live in the Keychain.
+deploy/deploy.env

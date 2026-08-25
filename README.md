@@ -1,81 +1,125 @@
-# LINE Personal AI — Phase 1
+# LINE Personal AI
 
-LINEで送ったメッセージをClaudeに投げ、その返事をLINEに返すだけの最小構成。
-Webhook受信 → 署名検証 → Claude呼び出し → reply、の往復ひとつが動く範囲まで。
+LINEで送ったメッセージとファイルをClaudeに渡し、返事をLINEに返す個人用アシスタント。
+資料と会話履歴はすべてローカルに暗号化して保存する。
 
 > **前提についての注記**
 > リポジトリに `line-personal-ai-spec.md` が見つからなかったため（`README.md` 以外の
-> ファイルはコミットされておらず、他ブランチにもありません）、フェーズ1の範囲は
-> 依頼文にあった「Webhook受信→Claude→replyの最小往復」の定義をそのまま採用しています。
-> 仕様書が入ったら、その内容と突き合わせて差分を埋めてください。
+> ファイルはコミットされておらず、他ブランチにもありません）、実装範囲は依頼文に
+> 列挙された要件をそのまま仕様として採用しています。仕様書が入ったら、その内容と
+> 突き合わせて差分を埋めてください。「設計上の判断と、仕様からの逸脱」の節に、
+> 判断が必要だった点をまとめてあります。
+
+## 目次
+
+- [構成](#構成)
+- [シークレットの置き場所](#シークレットの置き場所)
+- [ローカルでの起動](#ローカルでの起動)
+- [launchd での常駐](#launchd-での常駐)
+- [Cloudflare Tunnel の設定](#cloudflare-tunnel-の設定)
+- [リリースとロールバック](#リリースとロールバック)
+- [動作確認の手順](#動作確認の手順)
+- [チャットで使えるコマンド](#チャットで使えるコマンド)
+- [設計上の判断と、仕様からの逸脱](#設計上の判断と仕様からの逸脱)
+- [制約](#制約)
 
 ## 構成
 
 | ファイル | 役割 |
 | --- | --- |
-| `app/main.py` | FastAPIアプリ。`POST /webhook` と `GET /healthz` |
-| `app/line_client.py` | LINE署名検証（`WebhookParser`）とreply送信 |
-| `app/claude.py` | Anthropic Messages APIの薄いラッパ |
-| `app/config.py` | 設定の読み込み |
-| `app/keychain.py` | macOS Keychainからのシークレット読み出し |
-| `tests/test_webhook.py` | 署名検証とreply呼び出しのテスト |
+| `app/main.py` | FastAPI。`POST /webhook` と `GET /healthz` |
+| `app/serve.py` | プロセス入口。起動前チェック（プリフライト）つき |
+| `app/assistant.py` | メッセージ処理の本体。文脈組み立て → Claude → 暗号化保存 |
+| `app/claude.py` | Claude呼び出し（応答・要約・画像説明・履歴圧縮） |
+| `app/retry.py` | 429 / 529 のリトライ方針 |
+| `app/loading.py` | ローディング表示とその延長 |
+| `app/queues.py` | ユーザーIDごとの直列キュー |
+| `app/crypto.py` | マスター鍵 → HKDF → AES-256-GCM |
+| `app/vault.py` | `data/<userId>/<uuid>.enc` の読み書き |
+| `app/store.py` | 会話履歴・資料索引・設定（暗号化 sqlite3） |
+| `app/context.py` | 資料の関連度判定とsystem prompt組み立て |
+| `app/extract.py` | pypdf / python-docx によるテキスト抽出 |
+| `app/commands.py` | `/model` などのチャットコマンド |
+| `app/keychain.py` | Keychainからのシークレット読み出し |
+| `app/tools.py` | `genkey` / `check` |
+| `scripts/fake_anthropic.py` | 429/529 の動作確認用スタブサーバ |
 
-処理の流れ:
+### メッセージが処理される流れ
 
 1. `POST /webhook` が `X-Line-Signature` を検証する。不正なら400を返し、何もしない。
-2. テキストメッセージのイベントだけを拾い、**先に200を返す**。
-   LINEはWebhookに素早い応答を期待するため、Claude呼び出しは
-   `BackgroundTasks` に逃がしてレスポンス後に走らせる。
-3. バックグラウンドでClaudeに投げ、返ってきたテキストをreply tokenで返信する。
-
-フェーズ1は意図的にステートレスで、会話履歴は持たない。1メッセージが1会話。
+2. **ローディング表示を先に出す**（`POST /v2/bot/chat/loading/start`、`loadingSeconds=20`）。
+   キューに積む前に呼ぶので、直前のメッセージを処理中でもすぐ表示される。
+3. ジョブを **ユーザーIDごとの直列キュー** に積み、200を返す。
+   同じ人からの2通が並行に走ることはなく、届いた順に処理される。
+4. キューのワーカーが処理する。処理中はローディング表示を15秒ごとに打ち直すので、
+   APIの上限である60秒を超える応答でも表示が途切れない。
+5. テキストなら文脈（要約＋直近履歴＋関連資料）を組んでClaudeに投げ、
+   ファイル・画像ならメモリ上に取得して要約し、いずれも暗号化して保存してから返信する。
 
 ## シークレットの置き場所
 
-チャネルシークレット・チャネルアクセストークン・Anthropic APIキーは
-**macOS Keychainにだけ**置く。`.env` などの平文ファイルには書かない
-（`.gitignore` で `.env*` を弾いてある）。
+4つのシークレットを **macOS Keychainにだけ** 置く。`.env` などの平文ファイルには
+書かない（`.gitignore` で `.env*` を弾いてある）。
 
-登録は以下の3コマンド。`-w` に値を付けずに実行すると対話的に入力を求められるので、
+| Keychainのアカウント名 | 中身 |
+| --- | --- |
+| `LINE_CHANNEL_SECRET` | チャネルシークレット（署名検証用） |
+| `LINE_CHANNEL_ACCESS_TOKEN` | チャネルアクセストークン（長期） |
+| `ANTHROPIC_API_KEY` | Anthropic APIキー |
+| `MASTER_KEY` | 32バイトのマスター鍵（base64）。`data/` 配下の暗号化に使う |
+
+まずマスター鍵を作る:
+
+```bash
+make genkey
+# 例: 8Jx2... （32バイトのbase64。これを次のコマンドで貼り付ける）
+```
+
+4つとも登録する。`-w` に値を付けずに実行すると対話的に入力を求められるので、
 シークレットがシェル履歴に残らない。
 
 ```bash
 security add-generic-password -s line-personal-ai -a LINE_CHANNEL_SECRET -w
 security add-generic-password -s line-personal-ai -a LINE_CHANNEL_ACCESS_TOKEN -w
 security add-generic-password -s line-personal-ai -a ANTHROPIC_API_KEY -w
+security add-generic-password -s line-personal-ai -a MASTER_KEY -w
 ```
 
-確認と更新:
+登録できたか確認する（値そのものは表示されない）:
 
 ```bash
-# 登録済みか確認（-w を付けない限り値そのものは表示されない）
-security find-generic-password -s line-personal-ai -a LINE_CHANNEL_SECRET
-
-# 値を差し替える（-U で上書き）
-security add-generic-password -U -s line-personal-ai -a ANTHROPIC_API_KEY -w
-
-# 削除
-security delete-generic-password -s line-personal-ai -a ANTHROPIC_API_KEY
+make check
+# OK: all secrets resolved from Keychain service 'line-personal-ai'
 ```
 
-値はプロセス起動時に一度だけ読まれる。差し替えたらアプリの再起動が要る。
+更新と削除:
+
+```bash
+security add-generic-password -U -s line-personal-ai -a ANTHROPIC_API_KEY -w   # 上書き
+security delete-generic-password -s line-personal-ai -a ANTHROPIC_API_KEY      # 削除
+```
+
+値はプロセス起動時に一度だけ読まれる。差し替えたら `make restart` が要る。
+
+> **マスター鍵を失うと `data/` は復号できない。** 鍵の派生元はこれひとつで、
+> どこにもバックアップされない。Keychainごと失う可能性を考えるなら、
+> `make genkey` で作った値を別途安全な場所（パスワードマネージャなど）に控えておくこと。
+> 鍵を作り直すと、既存の `data/` は読めないまま残る。
+
+> **launchd から初回起動したとき、Keychainがアクセス許可を求めることがある。**
+> ダイアログが出たら「常に許可」を選ぶ。選ばないと、以後の自動起動で
+> シークレットを読めずに停止する（そのときの挙動は下の「プリフライト」を参照）。
 
 同名の環境変数が設定されていれば、そちらがKeychainより優先される。これはCIと
-非macOSホストのための逃げ道なので、開発マシンでは設定しないでおくこと
-（設定するとKeychainが単一の情報源でなくなる）。
+非macOSホストのための逃げ道なので、開発マシンでは設定しないでおくこと。
 
 ## ローカルでの起動
 
 必要なもの: Python 3.12、[uv](https://docs.astral.sh/uv/)。
 
 ```bash
-# 依存の取得（.venv を作って同期する）
-uv sync --extra dev
-
-# テスト
-uv run pytest
-
-# 起動（開発中は --reload 付きが楽）
+make sync        # 依存の取得（uv sync --extra dev）
+make test        # テスト
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
@@ -86,9 +130,8 @@ curl http://127.0.0.1:8000/healthz
 # {"status":"ok"}
 ```
 
-起動時のログに `Ready. model=... effort=...` が出れば、3つのシークレットは
-読めている。読めていない場合は `SecretNotFoundError` が出て、登録用の
-`security` コマンドがそのままメッセージに書かれる。
+起動時のログに `Ready. model=... effort=... data=...` が出れば、4つのシークレットは
+読めている。
 
 ### 調整できる項目
 
@@ -97,28 +140,69 @@ curl http://127.0.0.1:8000/healthz
 
 | 変数 | 既定値 | 内容 |
 | --- | --- | --- |
-| `LINE_AI_MODEL` | `claude-opus-5` | 使うモデル |
+| `LINE_AI_MODEL` | `claude-opus-5` | 既定のモデル |
 | `LINE_AI_EFFORT` | `low` | 思考の深さ (`low`/`medium`/`high`/`xhigh`/`max`) |
 | `LINE_AI_MAX_TOKENS` | `2000` | 応答の上限トークン |
-| `LINE_AI_SYSTEM_PROMPT` | `app/config.py` 参照 | システムプロンプト |
+| `LINE_AI_SYSTEM_PROMPT` | `app/config.py` 参照 | 土台となるsystem prompt |
 | `LINE_AI_REFUSAL_FALLBACK` | `1` | 拒否時のサーバサイドfallback。`0` で無効 |
-| `LINE_AI_KEYCHAIN_SERVICE` | `line-personal-ai` | Keychainのサービス名 |
+| `LINE_AI_DATA_DIR` | `data` | 暗号化データの保存先 |
+| `LINE_AI_HISTORY_EXCHANGES` | `8` | system promptに渡す直近の往復数 |
+| `LINE_AI_COMPACT_AFTER` | `40` | 履歴がこの件数を超えたら古い分を要約に畳む |
+| `LINE_AI_DOCUMENT_LIMIT` | `3` | 1回の応答に差し込む資料の最大数 |
+| `LINE_AI_DOCUMENT_THRESHOLD` | `0.08` | 資料を関連ありとみなす下限スコア |
+| `LINE_AI_DOCUMENT_CHARS` | `12000` | 資料1件あたりの差し込み上限文字数 |
+| `LINE_AI_MAX_DOWNLOAD_BYTES` | `20971520` | 受け取るファイルの上限（20MB） |
+| `LINE_AI_LOADING_SECONDS` | `20` | ローディング表示の1回あたりの秒数（5〜60） |
+| `LINE_AI_NOTIFY_WAIT_THRESHOLD` | `20` | この秒数を超える待ちはpushで知らせる |
+| `LINE_AI_QUEUE_MAX_PENDING` | `8` | 1ユーザーあたりの待ち行列の長さ |
+| `LINE_AI_HOST` / `LINE_AI_PORT` | `127.0.0.1` / `8000` | 待ち受け先 |
 | `LINE_AI_LOG_LEVEL` | `INFO` | ログレベル |
 
 LINEのreply tokenは短命なので、既定は `effort=low` で応答速度側に振ってある。
 返答の質を上げたいときは `high` に上げる代わりに、返信までの待ち時間が伸びる。
 
-`LINE_AI_REFUSAL_FALLBACK` は既定で有効。安全性の判定でモデルが応答を断った場合に、
-API側で別モデルに引き継いで返答を作る。アカウントでこのbetaが使えない場合は
-1回目のリクエストで自動的に無効化され、以降は通常の呼び出しにフォールバックする
-（ログに1行残る）。
+## launchd での常駐
+
+ログイン時に自動起動し、異常終了したら再起動する。1台につき1度だけ:
+
+```bash
+make install-agent
+```
+
+`~/Library/LaunchAgents/com.line-personal-ai.agent.plist` を生成して読み込む。
+ログは `~/Library/Logs/line-personal-ai/agent.log`。
+
+```bash
+make status    # 状態を見る
+make logs      # ログを追う
+make restart   # 再起動
+make stop      # 停止（ログインしても起動しなくなる）
+```
+
+### プリフライトと、再起動しない停止
+
+`app/serve.py` はサーバを立てる前にシークレットを確認する。**マスター鍵がKeychainに
+無ければ、起動せずログを残して停止する。** そのとき終了コードは **0** を返す。
+
+plistの `KeepAlive` は `SuccessfulExit = false`、つまり
+**「正常終了でないときだけ再起動する」**。だから終了コード0は launchd にとって
+「もう放っておいてよい」の合図になり、再起動ループに入らない。逆に本当に落ちた
+ときは非ゼロで終わるので、ちゃんと再起動される。
+
+鍵が無いときのログはこうなる:
+
+```
+ERROR app.serve: Cannot start: Secret 'MASTER_KEY' not found. Add it to the login Keychain with:
+  security add-generic-password -s line-personal-ai -a MASTER_KEY -w
+ERROR app.serve: Not starting, and not asking launchd to retry - the Keychain entry has to be added by hand first.
+```
+
+鍵を登録したら `make start` で立ち上がる。
 
 ## Cloudflare Tunnel の設定
 
 LINEのWebhookはHTTPSの公開URLしか受け付けない。`cloudflared` でローカルの
 8000番を外に出す。
-
-### 準備
 
 ```bash
 brew install cloudflared
@@ -129,33 +213,24 @@ brew install cloudflared
 アカウント登録もDNSも要らない。URLは起動ごとに変わる。
 
 ```bash
-# 別ターミナルでアプリを起動しておく
-uv run uvicorn app.main:app --port 8000
-
 cloudflared tunnel --url http://localhost:8000
 ```
 
-`https://<ランダムな文字列>.trycloudflare.com` が表示されるので、
-これに `/webhook` を付けたものをLINEのWebhook URLに設定する。
-再起動するたびにURLが変わるので、そのたびに設定し直す必要がある。
+表示された `https://<ランダム>.trycloudflare.com` に `/webhook` を付けて
+LINEのWebhook URLに設定する。再起動のたびに設定し直しになる。
 
 ### B. 固定URL（Named Tunnel）
 
-Cloudflareアカウントと、そこに登録済みのドメインが要る。URLが固定されるので
-LINE側の設定を毎回書き換えずに済む。
+Cloudflareアカウントと登録済みのドメインが要る。`make deploy` の疎通確認は
+固定URLを前提にしているので、常用するならこちら。
 
 ```bash
-# 1. Cloudflareにログイン（ブラウザが開く。証明書が ~/.cloudflared/cert.pem に入る）
-cloudflared tunnel login
-
-# 2. トンネルを作る（認証情報が ~/.cloudflared/<UUID>.json に入る）
-cloudflared tunnel create line-personal-ai
-
-# 3. DNSレコードを作る（例: line-ai.example.com）
+cloudflared tunnel login                                       # ~/.cloudflared/cert.pem
+cloudflared tunnel create line-personal-ai                     # ~/.cloudflared/<UUID>.json
 cloudflared tunnel route dns line-personal-ai line-ai.example.com
 ```
 
-`~/.cloudflared/config.yml` を作る:
+`~/.cloudflared/config.yml`:
 
 ```yaml
 tunnel: line-personal-ai
@@ -167,41 +242,419 @@ ingress:
   - service: http_status:404
 ```
 
-`<UUID>` は `cloudflared tunnel list` で確認できる。起動:
+`<UUID>` は `cloudflared tunnel list` で確認できる。
 
 ```bash
-cloudflared tunnel run line-personal-ai
+make tunnel                        # 手元で動かす
+sudo cloudflared service install   # launchdに登録して常駐させる
 ```
-
-常駐させたい場合は `sudo cloudflared service install` でlaunchdに登録する。
 
 トンネルの認証情報（`cert.pem` と `<UUID>.json`）は `~/.cloudflared/` に置かれる。
 リポジトリには入れないこと。
+
+### 公開URLをdeployに教える
+
+`deploy/deploy.env` を作る（gitignore済み。秘密は入らない）:
+
+```bash
+LINE_AI_PUBLIC_URL=https://line-ai.example.com
+```
 
 ### LINE側の設定
 
 [LINE Developersコンソール](https://developers.line.biz/console/) の
 対象チャネル → Messaging API設定 で:
 
-1. **Webhook URL** に `https://line-ai.example.com/webhook` を設定する
-   （Quick Tunnelなら `https://<ランダム>.trycloudflare.com/webhook`）。
-2. **検証** ボタンを押して成功することを確認する。
-   アプリとトンネルの両方が起動している必要がある。
+1. **Webhook URL** に `https://line-ai.example.com/webhook` を設定する。
+2. **検証** を押して成功することを確認する（アプリとトンネルの両方が起動していること）。
 3. **Webhookの利用** をオンにする。
 4. **応答メッセージ** をオフにする。オンのままだと定型の自動応答が混ざる。
-5. **あいさつメッセージ** は好みで。
 
 チャネルアクセストークン（長期）は同じ画面の下部で発行できる。
 チャネルシークレットは「チャネル基本設定」タブにある。
 
-設定できたら、そのチャネルを友だち追加して何か送る。
-`Handling text message` → `Replied` の2行がログに出れば往復できている。
+## リリースとロールバック
 
-## 制約と、この先
+### リリース
 
-- 会話履歴を持たない。前のメッセージを踏まえた返事はできない。
-- テキストメッセージだけを扱う。スタンプ・画像・音声は無視する（ログには残る）。
+```bash
+make deploy
+```
+
+1本のスクリプト（`scripts/deploy.sh`）が4段階を順に実行し、途中で失敗したらそこで止まる:
+
+1. **依存更新** — `uv sync --extra dev`
+2. **テスト** — `uv run pytest -q`。落ちたらここで終わり、再起動はしない
+3. **launchd再起動** — `launchctl kickstart -k`、そのあとローカルの `/healthz` を最大30秒待つ
+4. **トンネル疎通確認** — `$LINE_AI_PUBLIC_URL/healthz` を外側から叩き、
+   `{"status":"ok"}` が返ることを確認する
+
+最後にデプロイしたコミット、公開URL、ログの場所を表示する。
+
+手順を踏むリリース:
+
+```bash
+git pull                      # 変更を取り込む
+make deploy                   # 上の4段階
+git log --oneline -1          # いま動いているコミットを控えておく
+```
+
+LINEアプリから1通送って、実際に返事が来ることを確かめる。
+
+### ロールバック
+
+```bash
+make rollback REF=<戻したいコミット>
+```
+
+`scripts/rollback.sh` が指定のコミットを detached HEAD でチェックアウトし、
+そのまま `deploy.sh` を実行する（依存更新 → テスト → 再起動 → 疎通確認）。
+戻し先の候補は `git log --oneline -10` で確認できる。引数なしで実行すると
+直近10件を表示して止まる。
+
+```bash
+# 例: ひとつ前に戻す
+make rollback REF=$(git rev-parse --short HEAD~1)
+
+# 確認したら最新に戻る
+git checkout claude/line-personal-ai-phase1-po9c6a
+make deploy
+```
+
+**ロールバックしても `data/` は巻き戻らない。** 暗号化データはgit管理外なので、
+コードだけが戻る。保存形式を変える変更をロールバックする場合は、
+その前後で `data/` の互換性があるかを確認すること。
+
+### 手が使えないときの最小手順
+
+`make` が使えない状況（Makefileごと壊れているなど）でも、これだけで復旧できる:
+
+```bash
+cd ~/path/to/LINE-
+git checkout <戻したいコミット>
+uv sync
+launchctl kickstart -k gui/$(id -u)/com.line-personal-ai.agent
+curl https://line-ai.example.com/healthz
+```
+
+## 動作確認の手順
+
+### 自動でまとめて確認する
+
+```bash
+make test
+```
+
+以下はすべてテストとして自動化してある:
+
+- 署名検証（正・不正・ヘッダ欠落）
+- ローディング表示がwebhook受信直後に呼ばれること
+- 429で `retry-after` の秒数だけ待って再送すること、20秒超なら push すること
+- 529が指数バックオフで、`retry-after` を無視すること
+- 同一ユーザーの直列化と、別ユーザーの並行実行
+- `data/` 配下に平文が残らないこと（`strings` 実行を含む）
+- マスター鍵が無いときプリフライトが終了コード0で止まること
+- plistが `RunAtLoad` と `KeepAlive.SuccessfulExit=false` を持つこと
+
+以下は実機でしか確かめられないので、手順を分けて書く。
+
+---
+
+### P0-1. 3秒以内にLoading表示
+
+**確認すること**: LINEでメッセージを送ってから3秒以内に「入力中」の表示が出る。
+
+```bash
+# 1. ログを追う端末を用意する
+make logs
+```
+
+2. LINEアプリから何か1通送る。**送信した瞬間から、トーク画面に「…」が出るまでを数える。**
+3. ログにこの順で出ていれば、経路は正しい:
+
+```
+INFO app.main: ...                     # webhook受信
+INFO app.assistant: Handling ...       # キューのワーカーが処理を開始
+```
+
+4. 応答が20秒を超える場合、`LINE_AI_LOG_LEVEL=DEBUG` にすると延長も見える:
+
+```
+DEBUG app.loading: Refreshing the loading animation for U....
+```
+
+**わざと遅くして延長を見る**（60秒を超えても表示が消えないことの確認）:
+
+```bash
+LINE_AI_EFFORT=max LINE_AI_MAX_TOKENS=8000 make restart
+```
+
+長い調べものを投げると1分以上かかる。その間ずっと「入力中」が出続け、
+15秒ごとに `Refreshing the loading animation` がログに出る。確認できたら元に戻す。
+
+**表示が出ないときに見るところ**:
+
+- ログに `Could not start the loading animation` が出ていないか
+  （出ていればアクセストークンかチャネル設定の問題）
+- LINE Developersコンソールで「Webhookの利用」がオンか
+- そのユーザーが公式アカウントを友だち追加しているか（未追加だとローディングは出せない）
+
+---
+
+### P0-2. 429後に応答が返る
+
+本番のAPIで429をわざと起こすのは難しいので、スタブサーバに差し替えて確認する。
+
+```bash
+# 端末1: スタブを起動する（1回だけ429、retry-after は25秒）
+uv run python scripts/fake_anthropic.py --rate-limit 1 --retry-after 25
+```
+
+```bash
+# 端末2: アプリをスタブに向けて起動する（launchdは止めておく）
+make stop
+ANTHROPIC_BASE_URL=http://127.0.0.1:8931 uv run python -m app.serve
+```
+
+LINEから1通送って、以下を順に確認する:
+
+1. **「入力中」がすぐ出る**
+2. **「25秒後に返答します。」というpushが届く**
+   （25秒は閾値の20秒を超えているため。`--retry-after 10` にすると届かないことも確認できる）
+3. **約25秒後にスタブからの応答が届く** — 「スタブからの応答です（2回目のリクエスト）。」
+4. アプリのログ:
+
+```
+WARNING app.retry: Rate limited (attempt 1/3). Waiting 25s per retry-after.
+```
+
+5. スタブのログ:
+
+```
+fake-anthropic: request 1 -> 429 (retry-after: 25)
+fake-anthropic: request 2 -> 200
+```
+
+**529も同じ要領で確認できる**（`retry-after` を無視して指数バックオフすること）:
+
+```bash
+uv run python scripts/fake_anthropic.py --overload 2
+```
+
+スタブは529に `retry-after: 999` を付けて返す。ログの待ち時間が999秒ではなく
+数秒であれば、429と529が別の経路になっていることの確認になる。
+pushも飛ばない（待ち時間の見積もりを伝えられるのは429だけ）。
+
+確認が終わったら:
+
+```bash
+make start   # 本来のAPIに戻して常駐に戻す
+```
+
+---
+
+### P0-3. 再起動後に自動起動
+
+```bash
+# 1. いま登録されていることを確認する
+make status
+# state = running, および LINE_AI_PORT などが見えること
+
+# 2. Macを再起動して、ログインする
+sudo shutdown -r now
+```
+
+ログイン後、**アプリには触らずに**:
+
+```bash
+# 3. プロセスが上がっているか
+launchctl print gui/$(id -u)/com.line-personal-ai.agent | grep -E 'state|pid'
+
+# 4. 応答するか
+curl http://127.0.0.1:8000/healthz
+# {"status":"ok"}
+
+# 5. 起動ログに再起動後の時刻が入っているか
+tail -20 ~/Library/Logs/line-personal-ai/agent.log
+```
+
+6. LINEから1通送って返事が来れば、トンネル込みで通っている
+   （`cloudflared` も `sudo cloudflared service install` で常駐させてあること）。
+
+**異常終了からの復帰も確認する**:
+
+```bash
+PID=$(launchctl print gui/$(id -u)/com.line-personal-ai.agent | awk '/pid =/{print $3}')
+kill -9 "$PID"
+sleep 15                                   # ThrottleInterval は10秒
+curl http://127.0.0.1:8000/healthz         # 別PIDで復帰しているはず
+```
+
+**鍵が無いときに再起動ループしないことも確認する**:
+
+```bash
+security delete-generic-password -s line-personal-ai -a MASTER_KEY
+make restart
+sleep 30
+tail -5 ~/Library/Logs/line-personal-ai/agent.log
+#   -> "Cannot start: Secret 'MASTER_KEY' not found..." が1〜2回だけ出て止まる
+#      （何十回も繰り返されていたら、plistの KeepAlive を確認する）
+
+# 鍵を戻す
+security add-generic-password -s line-personal-ai -a MASTER_KEY -w
+make start
+```
+
+---
+
+### `data/` の中身が読めないことの確認
+
+保存されているのは、資料の本体・抽出テキスト・要約・会話履歴のすべて。
+どれも平文では残らない。
+
+```bash
+# 1. 何か特徴のある内容を送る
+#    LINEから「私の口座番号は1234567です」と送信し、
+#    テキストファイルやPDFも1つ送っておく
+
+# 2. 何が書かれたか見る（ファイル名はUUIDのみ）
+ls -la data/*/
+#   Uxxxxxxxx/3f9c1e2a-....enc
+#   Uxxxxxxxx/8b7d0f11-....enc
+#   Uxxxxxxxx/store.db
+
+# 3. strings で全部を舐める
+strings -a data/*/*.enc data/*/store.db | less
+
+# 4. 送った内容が出てこないことを確認する
+strings -a data/*/*.enc data/*/store.db | grep -i "1234567"
+strings -a data/*/*.enc data/*/store.db | grep -i "口座"
+#   -> どちらも何も出ない（grepの終了コードは1）
+```
+
+まとめて確認するなら:
+
+```bash
+for word in 1234567 口座 $(送ったファイル名); do
+  if strings -a data/*/* 2>/dev/null | grep -qi "$word"; then
+    echo "NG: $word が読めてしまう"
+  else
+    echo "OK: $word は出てこない"
+  fi
+done
+```
+
+日本語は `strings` の既定ではUTF-8として拾われないことがあるので、
+生バイト列でも確認しておくと確実:
+
+```bash
+grep -r --binary-files=text "口座" data/ ; echo "exit=$?"   # exit=1 なら見つかっていない
+```
+
+**出てくるのが正常なもの**（内容ではないので問題ない）:
+
+- `store.db` の中の sqlite のスキーマ文字列 — `CREATE TABLE messages`, `role`, `content` など
+- 会話の役割を表す `user` / `assistant` の文字列
+- ディレクトリ名になっているLINEのユーザーID（`U` で始まる33文字）
+- タイムスタンプとUUID
+
+つまり **「いつ、何件やり取りしたか」は分かるが、「何を話したか」は分からない**。
+メタデータまで隠したい場合は、ディレクトリ名をユーザーIDのハッシュに変えるなどの
+追加対応が要る（現状は仕様どおり `data/<userId>/` にしてある）。
+
+**鍵が無ければ読めないことの確認**:
+
+```bash
+uv run python - <<'EOF'
+from app.crypto import Crypto, decode_master_key, generate_master_key
+from app.vault import Vault
+from pathlib import Path
+import sys
+
+user = sys.argv[1] if len(sys.argv) > 1 else input("userId: ").strip()
+wrong = Vault(Path("data"), Crypto(decode_master_key(generate_master_key())))
+for record_id in wrong.record_ids(user):
+    try:
+        wrong.read(user, record_id)
+        print("NG: 別の鍵で読めてしまった", record_id)
+    except Exception as exc:
+        print("OK:", record_id, "->", type(exc).__name__)
+EOF
+```
+
+### Claude Code から `data/` を読ませない設定
+
+2か所で塞いである:
+
+- `.claudeignore` — `data/` を対象外にする
+- `.claude/settings.json` — `Read(./data/**)` と `Edit(./data/**)` を deny、
+  加えて `cat` / `strings` / `sqlite3` / `cp` を `data/` に向けるBashコマンドも deny
+
+**ただしBashの deny 規則は前方一致なので、抜け道は塞ぎきれない**
+（`cd data && cat *` のような書き方は素通りする）。Claude Codeに
+`data/` の中身を読ませるような依頼を、そもそもしないこと。
+
+## チャットで使えるコマンド
+
+LINEのトークにそのまま打つ。Claudeには渡らず、会話履歴にも残らない。
+
+| コマンド | 動作 |
+| --- | --- |
+| `/model` | いま使っているモデルを表示する |
+| `/model opus-5` | 応答の速いモデルに切り替える |
+| `/model fable-5` | じっくり考えるモデルに切り替える |
+| `/help` | ヘルプを表示する |
+
+切り替えは **ユーザー単位** で、`data/<userId>/store.db` に保存される。
+`opus` / `fable` / `claude-opus-5` のような書き方も受け付ける。
+一覧にないモデル名を指定すると拒否され、既定のままになる。
+
+## 設計上の判断と、仕様からの逸脱
+
+いずれも実装しながら判断が必要だった点。仕様書が出てきたら突き合わせてほしい。
+
+**1. 直近の履歴は `messages` で渡している（system promptではなく）**
+仕様は「直近N往復＋要約をsystem promptに渡す」だが、直近の往復は Messages API の
+`messages` 配列に本来の役割つきで渡し、**要約と参考資料をsystem promptに入れて**いる。
+モデルに渡る情報は同じで、会話の順序と話者がAPIの想定どおりに伝わるぶん結果は良くなる。
+要約と資料は仕様どおりsystem promptに入っている。
+
+**2. 画像は Claude のvisionで要約している**
+仕様の抽出経路（pypdf / python-docx）は画像に使えない。要約が無いと索引に載らず
+「関連資料を選ぶ」対象にもならないので、画像はvisionで説明文を作って索引にしている。
+本体は他と同じく暗号化して保存する。
+
+**3. 資料の選定はモデルに問い合わせず、文字bigramの重なりで採点している**
+「要約索引から関連資料を選ぶ」ために毎回Claudeを1往復させると、返信までの時間が
+その分伸びる。日本語は空白で単語が切れないので、単語ではなく文字bigramの重なりで
+採点している（日本語・英語のどちらでも動く）。閾値と件数は
+`LINE_AI_DOCUMENT_THRESHOLD` / `LINE_AI_DOCUMENT_LIMIT` で変えられる。
+
+**4. マスター鍵が無いとき「終了コード0」で止める**
+launchd の `KeepAlive.SuccessfulExit=false` は「正常終了でないときだけ再起動」する。
+つまり **再起動させないためには正常終了しなければならない**。直感に反するので
+`app/serve.py` にコメントで書いてある。同じ理由から、他のシークレットが欠けている
+ときも同様に扱っている（再起動しても直らないため）。
+
+**5. 設定値（モデルの選択）だけは暗号化していない**
+`store.db` の `settings` テーブルは平文。モデル名は利用者が書いた内容ではなく設定なので、
+暗号化の対象から外している。**このテーブルにユーザーの入力を入れないこと。**
+
+**6. Anthropic SDK の自動リトライを切っている**
+SDKは既定で429や5xxを2回まで再送する。それを残すと自前の方針と二重になり、
+`retry-after` どおりの待ちにもならないので `max_retries=0` にしてある
+（`tests/test_claude_integration.py` で、1リクエストしか飛ばないことを確認している）。
+
+## 制約
+
+- テキスト、ファイル、画像のメッセージだけを扱う。
+  スタンプ・音声・動画・位置情報は無視する（ログには残る）。
+- 受け取るファイルは20MBまで。超えるとその旨を返す。
+- テキストを抽出できるのは PDF・DOCX・プレーンテキスト系のみ。
+  それ以外は本体を暗号化して保存し、テキスト抽出はしない。
+- 画像から文字を読むのは Claude のvisionによる。専用のOCRほど正確ではない。
 - 応答はLINEの上限に合わせて4900文字で切る。
 - reply tokenは1回きりで期限があるため、返信の送信に失敗しても再送はしない。
-- `data/` ディレクトリはこのフェーズの対象外。コードからは触れておらず、
-  `.gitignore` にも入れてある。
+- 会話履歴と資料はユーザーIDごとに完全に分かれていて、互いに参照できない。
+- グループ・ルームからのメッセージは扱わない（個人用のため）。
+- 1ユーザーあたりの待ち行列は8件まで。あふれたら「あとで送って」と返す。
