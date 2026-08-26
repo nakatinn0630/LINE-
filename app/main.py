@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated, AsyncIterator
+from typing import Annotated
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from linebot.v3.exceptions import InvalidSignatureError

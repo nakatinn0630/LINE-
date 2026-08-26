@@ -6,7 +6,6 @@ through the whole pipeline, then scan every byte under `data/` for it.
 
 from __future__ import annotations
 
-import io
 import shutil
 import subprocess
 
@@ -95,7 +94,7 @@ def test_the_directory_is_owner_only(populated_data_dir):
 
 
 def test_a_wrong_master_key_cannot_read_any_of_it(populated_data_dir, tmp_path):
-    from app.crypto import DecryptionError, Crypto, decode_master_key, generate_master_key
+    from app.crypto import Crypto, DecryptionError, decode_master_key, generate_master_key
 
     attacker = Vault(populated_data_dir, Crypto(decode_master_key(generate_master_key())))
     user = "Uabcdef1234567890"

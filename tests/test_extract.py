@@ -19,7 +19,7 @@ def docx_bytes(paragraph: str, table: list[str] | None = None) -> bytes:
     document.add_paragraph(paragraph)
     if table:
         row = document.add_table(rows=1, cols=len(table)).rows[0]
-        for cell, value in zip(row.cells, table):
+        for cell, value in zip(row.cells, table, strict=True):
             cell.text = value
     buffer = io.BytesIO()
     document.save(buffer)

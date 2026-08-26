@@ -23,8 +23,9 @@ import email.utils
 import logging
 import random
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable, TypeVar
+from typing import TypeVar
 
 import anthropic
 
@@ -80,7 +81,7 @@ def _retry_after_of(exc: anthropic.APIStatusError) -> float | None:
     return parse_retry_after(headers.get("retry-after"))
 
 
-async def call_with_retries(
+async def call_with_retries[T](
     operation: Callable[[], Awaitable[T]],
     *,
     policy: RetryPolicy | None = None,
@@ -128,7 +129,7 @@ async def call_with_retries(
             )
             if notify is not None and wait > policy.notify_threshold_seconds:
                 try:
-                    await notify(int(round(wait)))
+                    await notify(round(wait))
                 except Exception:
                     logger.exception("Failed to notify the user about the wait.")
             await sleep(wait)

@@ -1,5 +1,0 @@
-# Encrypted personal data. Claude Code must not read this directory.
-data/
-
-# Local deploy overrides (hostnames, ports - no secrets, but not Claude's business).
-deploy/deploy.env

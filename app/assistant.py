@@ -16,21 +16,23 @@ import asyncio
 import logging
 import time
 
+from app import commands
 from app.claude import ClaudeClient
 from app.commands import MODEL_SETTING_KEY
 from app.config import Settings
 from app.context import build_system_prompt, select_documents, truncate
 from app.crypto import Crypto
-from app.extract import ExtractionError, extract_text, guess_mime, SUPPORTED_IMAGE_MIMES
+from app.extract import SUPPORTED_IMAGE_MIMES, ExtractionError, extract_text, guess_mime
 from app.line_client import ContentTooLargeError, LineClient
 from app.store import UserStore
 from app.vault import Vault
-from app import commands
 
 logger = logging.getLogger(__name__)
 
 TOO_LARGE_REPLY = "ファイルが大きすぎて受け取れませんでした。"
-UNREADABLE_REPLY = "ファイルを受け取りましたが、中身を読み取れませんでした。暗号化して保存だけしておきます。"
+UNREADABLE_REPLY = (
+    "ファイルを受け取りましたが、中身を読み取れませんでした。暗号化して保存だけしておきます。"
+)
 DOWNLOAD_FAILED_REPLY = "ファイルを受け取れませんでした。もう一度送ってみてください。"
 
 

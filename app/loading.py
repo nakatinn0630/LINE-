@@ -13,9 +13,10 @@ message.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from linebot.v3.messaging import AsyncMessagingApi, ShowLoadingAnimationRequest
 
@@ -67,10 +68,8 @@ class LoadingIndicator:
             yield
         finally:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
     async def _refresh_loop(self, user_id: str) -> None:
         while True:

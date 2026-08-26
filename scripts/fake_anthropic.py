@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s fake-anthropic: %(message)s")
@@ -34,7 +33,7 @@ STATE = {"rate_limit": 0, "overload": 0, "retry_after": "25", "requests": 0}
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def do_POST(self) -> None:  # noqa: N802 - name fixed by BaseHTTPRequestHandler
+    def do_POST(self) -> None:
         length = int(self.headers.get("content-length", "0"))
         self.rfile.read(length)
         STATE["requests"] += 1

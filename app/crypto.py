@@ -44,7 +44,7 @@ def decode_master_key(encoded: str) -> bytes:
     """Decode and validate the base64 master key read from the Keychain."""
     try:
         raw = base64.b64decode(encoded.strip(), validate=True)
-    except Exception as exc:  # noqa: BLE001 - any decode failure is the same problem
+    except Exception as exc:
         raise ValueError(
             "MASTER_KEY in the Keychain is not valid base64. Regenerate it with "
             "`uv run python -m app.tools genkey`."
@@ -72,7 +72,7 @@ class Crypto:
                 algorithm=hashes.SHA256(),
                 length=MASTER_KEY_BYTES,
                 salt=_HKDF_SALT,
-                info=f"user:{user_id}".encode("utf-8"),
+                info=f"user:{user_id}".encode(),
             ).derive(self._master)
             cipher = AESGCM(derived)
             self._cache[user_id] = cipher
@@ -109,4 +109,4 @@ class Crypto:
 
     @staticmethod
     def _aad(user_id: str, context: str) -> bytes:
-        return f"line-personal-ai/v1|{user_id}|{context}".encode("utf-8")
+        return f"line-personal-ai/v1|{user_id}|{context}".encode()

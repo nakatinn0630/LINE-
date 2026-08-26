@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class UserQueues:
         while True:
             try:
                 job = await asyncio.wait_for(queue.get(), timeout=self._idle_timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 async with self._lock:
                     # Re-check under the lock: a job may have arrived while we
                     # were waiting for it, in which case we must not exit.

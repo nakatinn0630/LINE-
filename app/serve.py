@@ -34,7 +34,7 @@ def _configure_logging() -> None:
     )
 
 
-def preflight() -> "object":
+def preflight() -> object:
     """Load settings, or explain what is missing and stop the process.
 
     Never returns when a secret is missing - it exits 0 so launchd will not

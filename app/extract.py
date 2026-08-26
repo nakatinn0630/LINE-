@@ -69,11 +69,10 @@ def _extract_pdf(payload: bytes) -> str:
 
     try:
         reader = PdfReader(io.BytesIO(payload))
-        if reader.is_encrypted:
-            # An empty password unlocks most "protected" PDFs; if it does not,
-            # say so rather than returning a page of nothing.
-            if reader.decrypt("") == 0:
-                raise ExtractionError("the PDF is password protected")
+        # An empty password unlocks most "protected" PDFs; if it does not,
+        # say so rather than returning a page of nothing.
+        if reader.is_encrypted and reader.decrypt("") == 0:
+            raise ExtractionError("the PDF is password protected")
         pages = [page.extract_text() or "" for page in reader.pages]
     except ExtractionError:
         raise

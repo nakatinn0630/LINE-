@@ -30,3 +30,23 @@ packages = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.4",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# This project is bilingual; Japanese text legitimately uses full-width
+# punctuation, so the ambiguous-character rules are pure noise here.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests drive external processes and assert on the result themselves; an
+# implicit check=True would turn an expected failure into an error.
+"tests/*" = ["S603"]

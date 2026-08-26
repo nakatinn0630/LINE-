@@ -1,9 +1,9 @@
 import pytest
 
 from app.crypto import (
+    MASTER_KEY_BYTES,
     Crypto,
     DecryptionError,
-    MASTER_KEY_BYTES,
     decode_master_key,
     generate_master_key,
 )

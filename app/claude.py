@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Any, Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
+from typing import Any
 
 import anthropic
 
@@ -135,7 +136,10 @@ class ClaudeClient:
                             "data": base64.standard_b64encode(payload).decode("ascii"),
                         },
                     },
-                    {"type": "text", "text": f"{_IMAGE_SUMMARY_PROMPT}\n\nファイル名: {filename}"},
+                    {
+                        "type": "text",
+                        "text": f"{_IMAGE_SUMMARY_PROMPT}\n\nファイル名: {filename}",
+                    },
                 ],
             }
         ]
@@ -163,7 +167,8 @@ class ClaudeClient:
         parts = [_COMPACT_PROMPT]
         if previous_summary:
             parts.append(f"# これまでの要約\n{previous_summary}")
-        parts.append(f"# 新しいやり取り\n{truncate(transcript, self._settings.summary_input_chars)}")
+        trimmed = truncate(transcript, self._settings.summary_input_chars)
+        parts.append(f"# 新しいやり取り\n{trimmed}")
         return await self._text_call(
             model=model,
             system="あなたは会話ログを要約するアシスタントです。",
