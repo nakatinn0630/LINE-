@@ -5,12 +5,13 @@ LINEで送ったメッセージとファイルをClaudeに渡し、返事をLINE
 
 仕様は `line-personal-ai-spec.md`（v0.4）が正。判断の経緯はその11章に日付付きで残してある。
 
-> **未決の項目がひとつある: 既定モデル。**
-> 仕様書0章は `claude-fable-5` を既定としているが、実装は `claude-opus-5` を既定に
-> している（`app/config.py` の `DEFAULT_MODEL`）。`/model` でどちらにも切り替えられる
-> ので機能上は困らないが、**単価が2倍違う**（Fable 5 は $10/$50、Opus 5 は $5/$25）。
-> どちらを既定にするか決めて、0章か `DEFAULT_MODEL` のどちらかを直すこと。
-> 詳細は仕様書 13.3。
+既定モデルは仕様書0章のとおり **`claude-fable-5`**。`/model opus-5` で `claude-opus-5` に
+切り替えられ、`/model fable-5` で戻る。切り替えはユーザー単位。
+
+> **Fable 5 を使うには、組織のデータ保持設定が30日である必要がある。**
+> ゼロデータ保持（ZDR）の組織からのリクエストは `400 invalid_request_error` で弾かれる。
+> 弾かれる場合は `LINE_AI_MODEL=claude-opus-5` を設定して既定を Opus 5 に落とすか、
+> 組織設定を見直すこと。
 
 ## 目次
 
@@ -144,7 +145,7 @@ curl http://127.0.0.1:8000/healthz
 
 | 変数 | 既定値 | 内容 |
 | --- | --- | --- |
-| `LINE_AI_MODEL` | `claude-opus-5` | 既定のモデル |
+| `LINE_AI_MODEL` | `claude-fable-5` | 既定のモデル（`/model` 未設定のユーザーに使う） |
 | `LINE_AI_EFFORT` | `low` | 思考の深さ (`low`/`medium`/`high`/`xhigh`/`max`) |
 | `LINE_AI_MAX_TOKENS` | `2000` | 応答の上限トークン |
 | `LINE_AI_SYSTEM_PROMPT` | `app/config.py` 参照 | 土台となるsystem prompt |
@@ -164,6 +165,10 @@ curl http://127.0.0.1:8000/healthz
 
 LINEのreply tokenは短命なので、既定は `effort=low` で応答速度側に振ってある。
 返答の質を上げたいときは `high` に上げる代わりに、返信までの待ち時間が伸びる。
+
+Fable 5 は思考が常時オンで、深さを決めるのは `LINE_AI_EFFORT` だけ。難しい依頼では
+1回の応答に数分かかることがあるので、**`effort` を上げるときはローディング表示の
+打ち直し（15秒ごと）が効いていることを併せて確認する**とよい。
 
 ## launchd での常駐
 
@@ -714,13 +719,15 @@ LINEのトークにそのまま打つ。Claudeには渡らず、会話履歴に�
 | コマンド | 動作 |
 | --- | --- |
 | `/model` | いま使っているモデルを表示する |
+| `/model fable-5` | じっくり考えるモデルに切り替える（**既定**） |
 | `/model opus-5` | 応答の速いモデルに切り替える |
-| `/model fable-5` | じっくり考えるモデルに切り替える |
 | `/help` | ヘルプを表示する |
 
 切り替えは **ユーザー単位** で、`data/<userId>/store.db` に保存される。
 `opus` / `fable` / `claude-opus-5` のような書き方も受け付ける。
 一覧にないモデル名を指定すると拒否され、既定のままになる。
+
+切り替えずにいると `claude-fable-5` が使われる（仕様書0章）。
 
 ## 設計上の判断と、仕様からの逸脱
 

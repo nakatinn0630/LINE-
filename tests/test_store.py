@@ -59,9 +59,9 @@ def test_documents_come_back_newest_first(store):
 
 def test_settings_roundtrip(store):
     assert store.get_setting("model") is None
-    store.set_setting("model", "claude-fable-5")
     store.set_setting("model", "claude-opus-5")
-    assert store.get_setting("model") == "claude-opus-5"
+    store.set_setting("model", "claude-fable-5")
+    assert store.get_setting("model") == "claude-fable-5"
 
 
 def test_no_user_content_is_readable_in_the_database_file(tmp_path, crypto):

@@ -22,9 +22,10 @@ LINE_CHANNEL_ACCESS_TOKEN = "LINE_CHANNEL_ACCESS_TOKEN"
 ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY"
 MASTER_KEY = MASTER_KEY_ACCOUNT
 
-DEFAULT_MODEL = "claude-opus-5"
-# Models the /model command will switch between.
-SELECTABLE_MODELS: tuple[str, ...] = ("claude-opus-5", "claude-fable-5")
+# 仕様書0章のとおり Fable 5 が既定、Opus 5 が切替先。
+DEFAULT_MODEL = "claude-fable-5"
+# /model が切り替えられるモデル。既定を先頭に置く。
+SELECTABLE_MODELS: tuple[str, ...] = ("claude-fable-5", "claude-opus-5")
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a personal assistant that talks to one person through LINE. "

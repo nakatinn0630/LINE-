@@ -69,7 +69,7 @@ class Handler(BaseHTTPRequestHandler):
                 "id": f"msg_fake_{index}",
                 "type": "message",
                 "role": "assistant",
-                "model": "claude-opus-5",
+                "model": "claude-fable-5",
                 "content": [
                     {"type": "text", "text": f"スタブからの応答です（{index}回目のリクエスト）。"}
                 ],
