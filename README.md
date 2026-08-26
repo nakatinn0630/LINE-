@@ -5,13 +5,12 @@ LINEで送ったメッセージとファイルをClaudeに渡し、返事をLINE
 
 仕様は `line-personal-ai-spec.md`（v0.4）が正。判断の経緯はその11章に日付付きで残してある。
 
-既定モデルは仕様書0章のとおり **`claude-fable-5`**。`/model opus-5` で `claude-opus-5` に
-切り替えられ、`/model fable-5` で戻る。切り替えはユーザー単位。
+既定モデルは仕様書0章のとおり **`claude-opus-5`**。`/model fable-5` で `claude-fable-5` に
+切り替えられ、`/model opus-5` で戻る。切り替えはユーザー単位。
 
-> **Fable 5 を使うには、組織のデータ保持設定が30日である必要がある。**
+> **`/model fable-5` に切り替えるときは、組織のデータ保持設定が30日である必要がある。**
 > ゼロデータ保持（ZDR）の組織からのリクエストは `400 invalid_request_error` で弾かれる。
-> 弾かれる場合は `LINE_AI_MODEL=claude-opus-5` を設定して既定を Opus 5 に落とすか、
-> 組織設定を見直すこと。
+> 既定は Opus 5 なので通常の運用は止まらないが、切り替えたユーザーだけ応答できなくなる。
 
 ## 目次
 
@@ -145,7 +144,7 @@ curl http://127.0.0.1:8000/healthz
 
 | 変数 | 既定値 | 内容 |
 | --- | --- | --- |
-| `LINE_AI_MODEL` | `claude-fable-5` | 既定のモデル（`/model` 未設定のユーザーに使う） |
+| `LINE_AI_MODEL` | `claude-opus-5` | 既定のモデル（`/model` 未設定のユーザーに使う） |
 | `LINE_AI_EFFORT` | `low` | 思考の深さ (`low`/`medium`/`high`/`xhigh`/`max`) |
 | `LINE_AI_MAX_TOKENS` | `2000` | 応答の上限トークン |
 | `LINE_AI_SYSTEM_PROMPT` | `app/config.py` 参照 | 土台となるsystem prompt |
@@ -166,9 +165,10 @@ curl http://127.0.0.1:8000/healthz
 LINEのreply tokenは短命なので、既定は `effort=low` で応答速度側に振ってある。
 返答の質を上げたいときは `high` に上げる代わりに、返信までの待ち時間が伸びる。
 
-Fable 5 は思考が常時オンで、深さを決めるのは `LINE_AI_EFFORT` だけ。難しい依頼では
-1回の応答に数分かかることがあるので、**`effort` を上げるときはローディング表示の
-打ち直し（15秒ごと）が効いていることを併せて確認する**とよい。
+`/model fable-5` に切り替えた場合、Fable 5 は思考が常時オンで、深さを決めるのは
+`LINE_AI_EFFORT` だけになる。難しい依頼では1回の応答に数分かかることがあるので、
+**`effort` を上げるときはローディング表示の打ち直し（15秒ごと）が効いていることを
+併せて確認する**とよい。
 
 ## launchd での常駐
 
@@ -214,9 +214,11 @@ plistの `KeepAlive` は `SuccessfulExit = false`、つまり
 鍵が無いときのログはこうなる:
 
 ```
-ERROR app.serve: Cannot start: Secret 'MASTER_KEY' not found. Add it to the login Keychain with:
+ERROR app.serve: master-key not found in the Keychain.
+ERROR app.serve: 起動できません: Secret 'MASTER_KEY' not found. Add it to the login Keychain with:
   security add-generic-password -s line-personal-ai -a MASTER_KEY -w
-ERROR app.serve: Not starting, and not asking launchd to retry - the Keychain entry has to be added by hand first.
+ERROR app.serve: 起動せず、launchdにも再試行を求めません。Keychainへの登録は手作業が必要です。
+  登録後は launchctl kickstart -k gui/$(id -u)/com.line-personal-ai.agent で手動起動してください。
 ```
 
 > **鍵を登録しても、自動では起動しない。手動での再起動が要る。**
@@ -719,15 +721,15 @@ LINEのトークにそのまま打つ。Claudeには渡らず、会話履歴に�
 | コマンド | 動作 |
 | --- | --- |
 | `/model` | いま使っているモデルを表示する |
-| `/model fable-5` | じっくり考えるモデルに切り替える（**既定**） |
-| `/model opus-5` | 応答の速いモデルに切り替える |
+| `/model opus-5` | 応答の速いモデルに切り替える（**既定**） |
+| `/model fable-5` | じっくり考えるモデルに切り替える |
 | `/help` | ヘルプを表示する |
 
 切り替えは **ユーザー単位** で、`data/<userId>/store.db` に保存される。
 `opus` / `fable` / `claude-opus-5` のような書き方も受け付ける。
 一覧にないモデル名を指定すると拒否され、既定のままになる。
 
-切り替えずにいると `claude-fable-5` が使われる（仕様書0章）。
+切り替えずにいると `claude-opus-5` が使われる（仕様書0章）。
 
 ## 設計上の判断と、仕様からの逸脱
 

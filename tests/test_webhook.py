@@ -340,8 +340,8 @@ def test_conversation_history_is_encrypted_on_disk(client, secret_env):
 
 
 def test_model_command_is_answered_without_calling_claude(client):
-    post(client, text_body("/model opus-5", reply_token="rt-m"))
-    assert client.line.replies == [("rt-m", "モデルを opus-5 に切り替えました。")]
+    post(client, text_body("/model fable-5", reply_token="rt-m"))
+    assert client.line.replies == [("rt-m", "モデルを fable-5 に切り替えました。")]
     assert client.claude.seen_history == []
 
 
@@ -351,31 +351,31 @@ def test_commands_do_not_enter_the_conversation_history(client):
     assert client.claude.seen_history[0] == []
 
 
-def test_the_default_model_is_fable_5(client):
-    """仕様書0章: 既定は claude-fable-5。12.5 フェーズ1検証の項目。"""
+def test_the_default_model_is_opus_5(client):
+    """仕様書0章: 既定は claude-opus-5。12.5 フェーズ1検証の項目。"""
     post(client, text_body("こんにちは"))
-    assert client.claude.seen_models == ["claude-fable-5"]
-
-
-def test_switching_to_opus_changes_the_model_passed_to_claude(client):
-    post(client, text_body("/model opus-5", reply_token="rt-m"))
-    post(client, text_body("そのあとの質問", reply_token="rt-q"))
     assert client.claude.seen_models == ["claude-opus-5"]
 
 
-def test_switching_back_returns_to_fable(client):
-    post(client, text_body("/model opus", reply_token="rt-1"))
+def test_switching_to_fable_changes_the_model_passed_to_claude(client):
+    post(client, text_body("/model fable-5", reply_token="rt-m"))
+    post(client, text_body("そのあとの質問", reply_token="rt-q"))
+    assert client.claude.seen_models == ["claude-fable-5"]
+
+
+def test_switching_back_returns_to_opus(client):
+    post(client, text_body("/model fable", reply_token="rt-1"))
     post(client, text_body("いち", reply_token="rt-2"))
-    post(client, text_body("/model fable", reply_token="rt-3"))
+    post(client, text_body("/model opus", reply_token="rt-3"))
     post(client, text_body("に", reply_token="rt-4"))
-    assert client.claude.seen_models == ["claude-opus-5", "claude-fable-5"]
+    assert client.claude.seen_models == ["claude-fable-5", "claude-opus-5"]
 
 
 def test_the_model_choice_does_not_leak_between_users(client):
-    post(client, text_body("/model opus-5", reply_token="rt-a", user_id="Uaaa"))
+    post(client, text_body("/model fable-5", reply_token="rt-a", user_id="Uaaa"))
     post(client, text_body("Aの質問", reply_token="rt-b", user_id="Uaaa"))
     post(client, text_body("Bの質問", reply_token="rt-c", user_id="Ubbb"))
-    assert client.claude.seen_models == ["claude-opus-5", "claude-fable-5"]
+    assert client.claude.seen_models == ["claude-fable-5", "claude-opus-5"]
 
 
 # -- 3.5 file and image ingest ------------------------------------------------
