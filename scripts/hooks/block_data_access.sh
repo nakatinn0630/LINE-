@@ -12,7 +12,8 @@
 #   2 - blocking error; the command does not run and stderr goes back to Claude
 set -uo pipefail
 
-ALLOWED=("ls data/" "du -sh data/")
+# 仕様書 12.10 が定める許可リスト。ファイル名は暗号化されているので一覧は安全。
+ALLOWED=("ls data/" "ls -la data/" "du -sh data/")
 
 payload="$(cat)"
 
@@ -47,7 +48,7 @@ done
     echo "Blocked: this command touches data/, which holds the encrypted personal archive."
     echo "  command: ${command_text}"
     echo
-    echo "Only these two commands are allowed against data/:"
+    echo "Allowed commands against the archive:"
     for allowed in "${ALLOWED[@]}"; do
         echo "  ${allowed}"
     done

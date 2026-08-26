@@ -40,21 +40,27 @@ def preflight() -> object:
     Never returns when a secret is missing - it exits 0 so launchd will not
     spin trying again.
     """
-    from app.config import get_settings
+    from app.config import MASTER_KEY, get_settings
     from app.keychain import SecretNotFoundError
 
     try:
         settings = get_settings()
     except SecretNotFoundError as exc:
-        logger.error("Cannot start: %s", exc)
+        # 仕様書 12.5 のフェーズ2検証が "master-key not found" を探すので、
+        # マスター鍵のときはその語をそのまま残す。
+        if MASTER_KEY in str(exc):
+            logger.error("master-key not found in the Keychain.")
+        logger.error("起動できません: %s", exc)
         logger.error(
-            "Not starting, and not asking launchd to retry - the Keychain entry "
-            "has to be added by hand first."
+            "起動せず、launchdにも再試行を求めません。Keychainへの登録は手作業が必要です。"
+            "登録後は launchctl kickstart -k gui/$(id -u)/com.line-personal-ai.agent "
+            "で手動起動してください。"
         )
         sys.exit(REFUSE_TO_START)
     except ValueError as exc:
-        # A malformed master key is the same class of problem: unfixable by restarting.
-        logger.error("Cannot start: %s", exc)
+        # 鍵の形式が壊れている場合も同じ。再起動しても直らない。
+        logger.error("master-key not found in a usable form.")
+        logger.error("起動できません: %s", exc)
         sys.exit(REFUSE_TO_START)
 
     logger.info(

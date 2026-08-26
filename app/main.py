@@ -78,6 +78,14 @@ async def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# 仕様書 12.5 のフェーズ4検証と 12.6 が /health を参照している。中身を増やすのは
+# フェーズ5（Keychain取得済み・DB接続可・直近5分のエラー数）なので、いまは
+# /healthz と同じ最小の応答を返す別名にとどめる。
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.post("/webhook")
 async def webhook(
     request: Request,

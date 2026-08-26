@@ -3,12 +3,14 @@
 LINEで送ったメッセージとファイルをClaudeに渡し、返事をLINEに返す個人用アシスタント。
 資料と会話履歴はすべてローカルに暗号化して保存する。
 
-> **前提についての注記**
-> リポジトリに `line-personal-ai-spec.md` が見つからなかったため（`README.md` 以外の
-> ファイルはコミットされておらず、他ブランチにもありません）、実装範囲は依頼文に
-> 列挙された要件をそのまま仕様として採用しています。仕様書が入ったら、その内容と
-> 突き合わせて差分を埋めてください。「設計上の判断と、仕様からの逸脱」の節に、
-> 判断が必要だった点をまとめてあります。
+仕様は `line-personal-ai-spec.md`（v0.4）が正。判断の経緯はその11章に日付付きで残してある。
+
+> **未決の項目がひとつある: 既定モデル。**
+> 仕様書0章は `claude-fable-5` を既定としているが、実装は `claude-opus-5` を既定に
+> している（`app/config.py` の `DEFAULT_MODEL`）。`/model` でどちらにも切り替えられる
+> ので機能上は困らないが、**単価が2倍違う**（Fable 5 は $10/$50、Opus 5 は $5/$25）。
+> どちらを既定にするか決めて、0章か `DEFAULT_MODEL` のどちらかを直すこと。
+> 詳細は仕様書 13.3。
 
 ## 目次
 
@@ -174,6 +176,19 @@ make install-agent
 `~/Library/LaunchAgents/com.line-personal-ai.agent.plist` を生成して読み込む。
 ログは `~/Library/Logs/line-personal-ai/agent.log`。
 
+`make install-agent` が中でやっているのは次の3つ。手で打つならこの順:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.line-personal-ai.agent.plist
+launchctl kickstart -k gui/$(id -u)/com.line-personal-ai.agent
+launchctl print gui/$(id -u)/com.line-personal-ai.agent | grep state
+```
+
+> **必ず LaunchAgent（`~/Library/LaunchAgents`）にすること。**
+> LaunchDaemon（`/Library/LaunchDaemons`）はログインセッションの外で動くため
+> **ログインキーチェーンを開けない**。`security find-generic-password` が失敗し、
+> 4つのシークレットを一切読めなくなる。plist の先頭にも同じ注意を書いてある。
+
 ```bash
 make status    # 状態を見る
 make logs      # ログを追う
@@ -336,6 +351,37 @@ make deploy
 コードだけが戻る。保存形式を変える変更をロールバックする場合は、
 その前後で `data/` の互換性があるかを確認すること。
 
+### リリース確認チェックリスト
+
+`make deploy` のあと、上から順に確認する（仕様書 12.5 フェーズ4検証）。
+
+- [ ] **壊れたコードが止まること** — わざと構文エラーを入れて `make deploy` を実行し、
+      テスト失敗の時点で止まって `launchctl` まで進まないこと。旧バージョンが動き続ける
+      ```bash
+      echo "def broken(:" >> app/config.py
+      make deploy                      # 「2/4 Running tests」で失敗するはず
+      launchctl print gui/$(id -u)/com.line-personal-ai.agent | grep -E 'state|pid'
+      git checkout app/config.py       # 後始末
+      ```
+- [ ] **正常時に起動時刻が更新されること**
+      ```bash
+      make deploy
+      launchctl print gui/$(id -u)/com.line-personal-ai.agent | grep -E 'state|pid'
+      curl -s https://line-ai.example.com/health     # {"status":"ok"}
+      ```
+- [ ] **ロールバックできること**
+      ```bash
+      make rollback REF=<前のタグまたはコミット>
+      curl -s https://line-ai.example.com/health
+      ```
+- [ ] **`/model` が効くこと** — LINEで `/model opus` を送り、次の返答のログを見る
+      ```bash
+      make logs | grep "Claude応答を生成しました"
+      # -> 要求モデル=claude-opus-5 応答モデル=claude-opus-5
+      ```
+      `/model fable` を送って `要求モデル=claude-fable-5` に戻ることも確認する
+- [ ] **LINEから1通送って返事が来ること**
+
 ### 手が使えないときの最小手順
 
 `make` が使えない状況（Makefileごと壊れているなど）でも、これだけで復旧できる:
@@ -359,13 +405,19 @@ make test
 以下はすべてテストとして自動化してある:
 
 - 署名検証（正・不正・ヘッダ欠落）
-- ローディング表示がwebhook受信直後に呼ばれること
-- 429で `retry-after` の秒数だけ待って再送すること、20秒超なら push すること
-- 529が指数バックオフで、`retry-after` を無視すること
+- ローディング表示がwebhook受信直後に呼ばれること。Claudeを待たせても**1秒未満**で出ること
+- ローディングの打ち直しが**15秒間隔**で、応答完了後に止まること
+- 429で `retry-after` の秒数だけ待って再送すること（`retry-after: 3` で**実測3〜4秒**）
+- 待機20秒超のとき push が**1回だけ**送られること
+- 529が `retry-after` 無しでも指数バックオフすること
 - 同一ユーザーの直列化と、別ユーザーの並行実行
-- `data/` 配下に平文が残らないこと（`strings` 実行を含む）
-- マスター鍵が無いときプリフライトが終了コード0で止まること
+- ユーザーAの派生鍵でBのファイルを開くと `InvalidTag` になること（AADの検証を含む）
+- PDFを取り込んでも `data/` 配下に平文が残らないこと（`strings` 実行と `$TMPDIR` 検査を含む）
+- マスター鍵が無いときプリフライトが終了コード0で止まり、ログに `master-key not found` が残ること
 - plistが `RunAtLoad` と `KeepAlive.SuccessfulExit=false` を持つこと
+- `make deploy` がテスト失敗時に `launchctl` へ進まないこと
+- フックが `data/` へのコマンドを拒否し、許可リストの3つだけ通すこと
+- `/health` と `/healthz` が200を返すこと
 
 以下は実機でしか確かめられないので、手順を分けて書く。
 
@@ -563,6 +615,21 @@ done
 grep -r --binary-files=text "口座" data/ ; echo "exit=$?"   # exit=1 なら見つかっていない
 ```
 
+### PDFを使った実機手順（仕様書 12.5 フェーズ3検証）
+
+1. LINEから、中身の分かっているPDFを送る（例: 本文に「四半期の売上」と書かれたもの）
+2. 取り込みが終わったら、`data/` 配下を丸ごと走査する:
+
+   ```bash
+   find data -type f | xargs strings -a | grep "四半期"
+   echo "exit=$?"        # exit=1（何も出ない）が正常
+   ```
+
+3. LINEで「さっき送った資料の要点は？」と聞き、**PDFの内容に沿った返事が来ること**を確認する
+
+2で何も出ないのに3で内容が返る、という組み合わせが取れて初めて
+「ディスク上は暗号化されているが、会話では使えている」ことの確認になる。
+
 **出てくるのが正常なもの**（内容ではないので問題ない）:
 
 - `store.db` の中の sqlite のスキーマ文字列 — `CREATE TABLE messages`, `role`, `content` など
@@ -657,7 +724,9 @@ LINEのトークにそのまま打つ。Claudeには渡らず、会話履歴に�
 
 ## 設計上の判断と、仕様からの逸脱
 
-いずれも実装しながら判断が必要だった点。仕様書が出てきたら突き合わせてほしい。
+いずれも実装しながら判断が必要だった点。**すべて仕様書11章「決定の経緯」に記録済み**
+（この6点は v0.4 の時点で反映されている）。以降に足した判断も同じ表に日付付きで並ぶので、
+経緯を追うなら11章を先に読むとよい。
 
 **1. 直近の履歴は `messages` で渡している（system promptではなく）**
 仕様は「直近N往復＋要約をsystem promptに渡す」だが、直近の往復は Messages API の

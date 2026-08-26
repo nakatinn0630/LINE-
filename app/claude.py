@@ -206,6 +206,16 @@ class ClaudeClient:
             logger.exception("Gave up calling Claude after retrying.")
             return BUSY_REPLY
 
+        # 仕様書 12.5 フェーズ4検証: /model の切り替えが効いたことをログで確かめる。
+        # 要求したモデルと、実際に応答を返したモデルの両方を残す（拒否時のfallbackで
+        # 別のモデルが答えることがあるため）。
+        logger.info(
+            "Claude応答を生成しました。要求モデル=%s 応答モデル=%s stop_reason=%s",
+            model,
+            getattr(response, "model", "不明"),
+            response.stop_reason,
+        )
+
         if response.stop_reason == "refusal":
             category = getattr(response.stop_details, "category", None)
             logger.info("Claude declined the request (category=%s).", category)

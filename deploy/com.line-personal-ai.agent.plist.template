@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- これは LaunchAgent です。必ず ~/Library/LaunchAgents に置くこと。
+         LaunchDaemon（/Library/LaunchDaemons）にすると、ログインセッションの外で
+         動くためログインキーチェーンを開けず、security find-generic-password が
+         失敗します。つまり LaunchDaemon 化した時点で秘密を一切読めなくなります。
+         仕様書 12.5 フェーズ2検証の6番、および 13.1 を参照。 -->
     <key>Label</key>
     <string>__LABEL__</string>
 
