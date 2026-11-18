@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>竹添義之税理士事務所｜トップページ デザインA案（信頼・堅実型）</title>
+<script>
+/* ▼ ヒーローのキャッチコピー（仮文言）。ここ1か所を書き換えると差し替わります ▼ */
+const HERO_COPY = "毎月の訪問で、経営の数字を一緒に確かめる。";
+/* ▲ ここまで ▲ */
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("hero-copy").textContent = HERO_COPY;
+});
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== A案（信頼・堅実型）デザイントークン：ここを変えれば全体が変わる ===== */
+:root{
+  /* 色 */
+  --c-brand:#12284C; --c-accent:#7A5C22; --c-text:#1C2430; --c-muted:#4E5968;
+  --c-bg:#FFFFFF; --c-bg-alt:#F4F6F9; --c-card:#FFFFFF; --c-line:#D5DAE2;
+  --c-link:#12284C; --c-cta:#12284C; --c-cta-hover:#0B1B36; --c-cta-text:#FFFFFF;
+  --c-hero-bg:#12284C; --c-hero-text:#FFFFFF; --c-hero-accent:#E3CD9B;
+  --c-icon:#12284C; --c-icon-bg:transparent;
+  --c-contact-bg:#12284C; --c-contact-text:#FFFFFF; --c-contact-accent:#E3CD9B;
+  --c-ft-bg:#0B1B36; --c-ft-text:#FFFFFF; --c-hd-bg:#FFFFFF;
+  --c-sptel-bg:#FFFFFF; --c-sptel-text:#12284C;
+  --c-tbc:#8A3B00; --c-tbc-bg:#FFF3DD; --c-req:#A32A2A; --c-field:#6B7584; --c-focus:#C28A00;
+  --c-ph-bg:#E9EDF3; --c-ph-text:#3B4A60; --c-ph-line:#7E8CA3;
+  /* フォント */
+  --font-head:"Noto Serif JP","Yu Mincho","YuMincho","Hiragino Mincho ProN","HGS明朝E",serif;
+  --font-body:"Noto Sans JP","Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+  --font-num:"Noto Serif JP","Times New Roman",serif; --font-kicker:"Noto Serif JP","Times New Roman",serif;
+  --fw-head:600; --ls-head:.06em;
+  --fs-body:16px; --lh-body:1.9; --fs-h1:30px; --fs-h2:26px; --fs-h3:19px;
+  /* 余白 */
+  --gutter:20px; --w-max:1120px; --gap:20px;
+  --sp-1:8px; --sp-2:16px; --sp-3:24px; --sp-4:40px; --sp-5:64px; --sp-sec:72px;
+  /* 形 */
+  --r-btn:2px; --r-card:0px; --r-icon:0px; --r-photo:0px; --r-field:2px;
+  --bd-card:1px solid var(--c-line); --bd-icon:0; --sh-card:none;
+  --tap:44px; --header-h:60px; --spbar-h:60px;
+  --greet-w:300px; --greet-ratio:3/4;
+}
+@media (min-width:900px){:root{--gutter:40px;--gap:28px;--sp-sec:120px;--fs-h1:50px;--fs-h2:34px;--fs-h3:20px}}
+
+
+/* ===== 共通レイアウト ===== */
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--header-h) + 8px)}
+body{margin:0;font-family:var(--font-body);font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text);background:var(--c-bg);padding-bottom:var(--spbar-h);overflow-wrap:anywhere}
+h1,h2,h3,p,ul,ol,dl,dd{margin:0}ul,ol{padding:0;list-style:none}
+a{color:inherit}img,svg{max-width:100%}
+.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;z-index:100;background:#fff;color:#000;padding:12px}
+:focus-visible{outline:3px solid var(--c-focus);outline-offset:2px}
+.wrap{width:100%;max-width:var(--w-max);margin-inline:auto;padding-inline:var(--gutter)}
+.wrap.narrow{max-width:820px}
+.ic{width:1.25em;height:1.25em;flex:none}
+h1,h2,h3{font-family:var(--font-head);font-weight:var(--fw-head);line-height:1.45;letter-spacing:var(--ls-head);word-break:auto-phrase;text-wrap:balance}
+h2{font-size:var(--fs-h2);margin-bottom:var(--sp-4)}
+h3{font-size:var(--fs-h3)}
+.kicker{font-family:var(--font-kicker);font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-accent);margin-bottom:var(--sp-1);font-weight:600}
+.sec{padding-block:var(--sp-sec)}
+.sec.alt{background:var(--c-bg-alt)}
+.sec-lead{margin-top:calc(var(--sp-4) * -1 + var(--sp-2));margin-bottom:var(--sp-4);color:var(--c-muted)}
+.muted{color:var(--c-muted)}
+.tbc{display:inline-block;font-family:var(--font-body);font-size:13px;font-weight:700;letter-spacing:0;line-height:1.4;color:var(--c-tbc);background:var(--c-tbc-bg);border:1px dashed var(--c-tbc);border-radius:4px;padding:1px 4px;vertical-align:middle;white-space:nowrap}
+.grid{display:grid;gap:var(--gap)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--tap);padding:10px 22px;border-radius:var(--r-btn);font-weight:700;font-size:16px;line-height:1.3;text-decoration:none;white-space:nowrap;border:2px solid transparent;cursor:pointer;font-family:var(--font-body);transition:background-color .15s,color .15s}
+.btn-primary{background:var(--c-cta);color:var(--c-cta-text)}
+.btn-primary:hover{background:var(--c-cta-hover)}
+.btn-block{width:100%;min-height:56px;font-size:17px}
+.card{background:var(--c-card);border:var(--bd-card);border-radius:var(--r-card);padding:var(--sp-3);box-shadow:var(--sh-card)}
+.num{font-family:var(--font-num);color:var(--c-accent);font-size:14px;letter-spacing:.12em;font-weight:600}
+
+/* header */
+.hd{position:sticky;top:0;z-index:50;background:var(--c-hd-bg);border-bottom:1px solid var(--c-line);height:var(--header-h)}
+.hd-in{display:flex;align-items:center;gap:8px;height:100%}
+.brand{display:flex;flex-direction:column;text-decoration:none;margin-right:auto;min-height:var(--tap);justify-content:center;line-height:1.3}
+.brand-sub{font-size:11px;color:var(--c-muted);letter-spacing:.08em}
+.brand-name{font-family:var(--font-head);font-weight:var(--fw-head);font-size:15px;color:var(--c-brand);white-space:nowrap}
+.hd-tel{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:var(--tap);min-height:var(--tap);text-decoration:none;color:var(--c-brand);font-weight:700;font-size:18px;font-family:var(--font-num)}
+.hd-tel .ic{width:22px;height:22px}
+.hd-tel-num,.hd-cta-long{display:none}
+.hd-cta{gap:0;padding-inline:14px;font-size:14px;white-space:nowrap}
+
+/* entry */
+.entry-card{display:flex;flex-direction:column;gap:10px;height:100%;text-decoration:none;transition:transform .15s,box-shadow .15s,border-color .15s}
+.entry-card:hover{transform:translateY(-2px);border-color:var(--c-accent)}
+.entry-tag{font-size:14px;font-weight:700;color:var(--c-accent);letter-spacing:.1em}
+.entry-ttl{font-family:var(--font-head);font-weight:var(--fw-head);font-size:20px;line-height:1.5}
+.entry-items{display:flex;flex-direction:column;gap:4px;color:var(--c-muted);font-size:16px}
+.entry-items span::before{content:"・"}
+.more{margin-top:auto;padding-top:8px;font-weight:700;color:var(--c-link);font-size:16px}
+.more::after{content:" →"}
+.icon-wrap{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;color:var(--c-icon);background:var(--c-icon-bg);border-radius:var(--r-icon);border:var(--bd-icon)}
+.icon-wrap .ic{width:28px;height:28px}
+
+/* reasons */
+.reason{display:flex;flex-direction:column;gap:8px}
+.reason h3{margin-top:2px}
+
+/* services */
+.svc{display:flex;flex-direction:column;gap:6px}
+.svc p{font-size:16px}
+
+/* price / voice */
+.price,.voice{border-style:dashed}
+.price-num{font-family:var(--font-num);font-size:24px;font-weight:700;margin-block:8px;color:var(--c-muted)}
+.voice-body{margin-bottom:12px}
+
+/* placeholder photo */
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;background:var(--c-ph-bg);color:var(--c-ph-text);border:2px dashed var(--c-ph-line);border-radius:var(--r-photo);font-size:14px;font-weight:700;line-height:1.5}
+.ph svg{width:72px;height:72px;opacity:.7}
+
+/* greeting */
+.greeting-in{display:grid;gap:var(--sp-4)}
+.greet-ph{aspect-ratio:var(--greet-ratio);max-width:var(--greet-w);width:100%;margin-inline:auto}
+.greeting-text p+p{margin-top:var(--sp-2)}
+.greeting-lead{font-family:var(--font-head);font-size:19px;line-height:1.8;font-weight:var(--fw-head)}
+.sign{font-family:var(--font-head);font-size:24px;font-weight:var(--fw-head);margin-top:var(--sp-3)!important}
+.sign span{font-size:15px;margin-right:12px;font-weight:400}
+
+/* flow */
+.flow{position:relative;background:var(--c-card);border:var(--bd-card);border-radius:var(--r-card);padding:var(--sp-3)}
+.flow h3{margin-block:4px}
+
+/* news */
+.news-list li{display:flex;flex-direction:column;gap:2px;padding:16px 0;border-bottom:1px solid var(--c-line)}
+.news-list li:first-child{border-top:1px solid var(--c-line)}
+.news-list time{font-family:var(--font-num);color:var(--c-muted);font-size:15px;letter-spacing:.06em}
+
+/* office */
+.office-in{display:grid;gap:var(--sp-4)}
+.office-dl div{display:grid;grid-template-columns:6.5em 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--c-line)}
+.office-dl div:first-child{border-top:1px solid var(--c-line)}
+.office-dl dt{font-weight:700;color:var(--c-brand)}
+.office-dl a{display:inline-flex;align-items:center;min-height:var(--tap);margin-block:-10px;color:var(--c-link);font-weight:700}
+.map{min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;background:var(--c-ph-bg);color:var(--c-ph-text);border:2px dashed var(--c-ph-line);border-radius:var(--r-card);font-size:14px;font-weight:700}
+.map svg{width:48px;height:48px}
+
+/* contact */
+.contact{background:var(--c-contact-bg);color:var(--c-contact-text)}
+.contact .kicker{color:var(--c-contact-accent)}
+.contact-in{display:grid;gap:var(--sp-4)}
+.tel-big{display:inline-flex;align-items:center;gap:10px;min-height:56px;margin-top:var(--sp-3);font-family:var(--font-num);font-size:34px;font-weight:700;text-decoration:none;letter-spacing:.02em}
+.tel-big .ic{width:28px;height:28px}
+.muted-inv{font-size:16px;opacity:.92;margin-top:4px}
+.form{background:var(--c-card);color:var(--c-text);border-radius:var(--r-card);padding:var(--sp-3);display:grid;gap:18px}
+.form label{display:grid;gap:6px;font-weight:700;font-size:16px}
+.form em{font-style:normal;font-size:12px;color:#fff;background:var(--c-req);border-radius:3px;padding:1px 6px;margin-left:4px;vertical-align:2px}
+.form input[type=text],.form input[type=tel],.form input[type=email],.form select,.form textarea{width:100%;min-height:48px;padding:10px 12px;font:inherit;font-weight:400;color:var(--c-text);background:#fff;border:1px solid var(--c-field);border-radius:var(--r-field)}
+.form-2{display:grid;gap:18px}
+.form .check{display:flex;align-items:center;gap:12px;font-weight:400;min-height:var(--tap)}
+.form .check input{width:24px;height:24px;flex:none;accent-color:var(--c-cta)}
+.form-note{font-size:16px;color:var(--c-muted);text-align:center}
+
+/* footer */
+.ft{background:var(--c-ft-bg);color:var(--c-ft-text);padding-block:var(--sp-4);font-size:15px}
+.ft-name{font-family:var(--font-head);font-size:19px;font-weight:var(--fw-head);margin-bottom:8px}
+.ft-copy{margin-top:12px;opacity:.9}
+
+/* sp fixed bar */
+.sp-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:2fr 3fr;height:var(--spbar-h);box-shadow:0 -2px 12px rgba(0,0,0,.14)}
+.sp-bar a{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:16px;text-decoration:none}
+.sp-tel{background:var(--c-sptel-bg);color:var(--c-sptel-text)}
+.sp-cta{background:var(--c-cta);color:var(--c-cta-text)}
+
+@media (min-width:600px){
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g-svc{grid-template-columns:repeat(2,1fr)}
+  .form-2{grid-template-columns:1fr 1fr}
+  .news-list li{flex-direction:row;gap:28px;align-items:baseline}
+  .news-list time{flex:none}
+}
+@media (min-width:900px){
+  :root{--header-h:76px;--spbar-h:0px}
+  .sp-bar{display:none}
+  .brand-sub{font-size:12px}.brand-name{font-size:20px}
+  .hd-in{gap:20px}
+  .hd-tel{font-size:22px}
+  .hd-tel-num,.hd-cta-long{display:inline}
+  .hd-cta{padding-inline:22px;font-size:16px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .greeting-in{grid-template-columns:var(--greet-w) 1fr;align-items:center;gap:var(--sp-5)}
+  .office-in{grid-template-columns:1fr 1fr;align-items:stretch}
+  .contact-in{grid-template-columns:5fr 6fr;align-items:start;gap:var(--sp-5)}
+  .form{padding:var(--sp-4)}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+/* ===== この案固有のスタイル ===== */
+h2{position:relative;padding-bottom:20px}
+h2::after{content:"";position:absolute;left:0;bottom:0;width:48px;height:2px;background:var(--c-accent)}
+.hero{background:var(--c-hero-bg);color:var(--c-hero-text);position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px) 0 0/25% 100%;pointer-events:none}
+.hero-in{position:relative;padding-block:72px 80px}
+.eyebrow{font-size:14px;letter-spacing:.14em;color:var(--c-hero-accent);margin-bottom:var(--sp-3);padding-left:44px;position:relative}
+.eyebrow::before{content:"";position:absolute;left:0;top:50%;width:32px;height:1px;background:var(--c-hero-accent)}
+.hero h1{font-size:var(--fs-h1);line-height:1.6;letter-spacing:.08em;max-width:15em}
+.hero-lead{margin-top:var(--sp-3);max-width:42em;font-size:16px}
+.hero-btns{display:grid;gap:12px;margin-top:var(--sp-4)}
+.hero .btn{min-height:56px;font-size:17px}
+.hero .btn-primary{background:#FFFFFF;color:var(--c-brand)}
+.hero .btn-primary:hover{background:#E8ECF3}
+.btn-ghost{border-color:rgba(255,255,255,.75);color:#fff;font-family:var(--font-num);font-size:20px!important;letter-spacing:.04em}
+.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.entry-card{border-top:3px solid var(--c-brand)}
+.icon-wrap{width:44px;height:44px;justify-content:flex-start}
+.icon-wrap .ic{width:36px;height:36px;stroke-width:1.1}
+.reason{border-top:1px solid var(--c-brand);padding-top:var(--sp-3)}
+.reason .num{font-size:28px;letter-spacing:.04em;line-height:1;order:-1}
+.reason .icon-wrap{position:absolute;right:0;top:20px}
+.reason{position:relative}
+.svc{border:0;border-top:1px solid var(--c-line);padding:20px 0}
+.g-svc{gap:0 var(--gap)}
+.flow{border:0;border-left:1px solid var(--c-brand);padding:4px 0 4px 20px;background:transparent}
+.contact .btn-primary{background:var(--c-brand)}
+.sp-tel{border-top:1px solid var(--c-line)}
+@media (min-width:600px){.hero-btns{grid-template-columns:auto auto;justify-content:start}.hero .btn{padding-inline:36px}}
+@media (min-width:900px){.hero-in{padding-block:128px 136px}.hero-lead{font-size:18px}.g-svc{grid-template-columns:repeat(2,1fr);column-gap:64px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">本文へ移動</a>
+<header class="hd">
+  <div class="wrap hd-in">
+    <a class="brand" href="#top"><span class="brand-sub">東京都文京区の税理士</span><span class="brand-name">竹添義之税理士事務所</span></a>
+    <a class="hd-tel" href="tel:0359468718" aria-label="電話 03-5946-8718"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg><span class="hd-tel-num">03-5946-8718</span></a>
+    <a class="btn btn-primary hd-cta" href="#contact">無料相談<span class="hd-cta-long">・お問合せ</span></a>
+  </div>
+</header>
+<main id="main">
+<section class="hero" id="top">
+  <div class="wrap hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">東京税理士会所属　ＴＫＣ全国会会員</p>
+      <!-- キャッチコピーは仮文言。ファイル冒頭の HERO_COPY を変更すると差し替わる -->
+      <h1 id="hero-copy">毎月の訪問で、経営の数字を一緒に確かめる。</h1>
+      <p class="hero-lead">貴社を毎月訪問し、自計化システムの活用と経営改善計画策定により黒字決算を支援します。</p>
+      <div class="hero-btns">
+        <a class="btn btn-primary" href="#contact"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3 7l9 6 9-6"/></svg>無料相談・お問合せ</a>
+        <a class="btn btn-ghost" href="tel:0359468718"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>03-5946-8718</a>
+      </div>
+    </div>
+    
+  </div>
+</section>
+
+<section class="sec entry" aria-labelledby="h-entry">
+  <div class="wrap">
+    <p class="kicker">Consultation</p>
+    <h2 id="h-entry">お悩みから探す</h2>
+    <ul class="grid g3 entry-list">
+      <li><a class="card entry-card" href="#services">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21v-9"/><path d="M12 12c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 15c0-3-2-5-6-5 0 3 2 5 6 5z"/></svg></span>
+        <span class="entry-tag">創業</span>
+        <strong class="entry-ttl">これから創業・独立する方</strong>
+        <span class="entry-items"><span>創業・独立の支援</span><span>自計化システムの導入支援</span></span>
+        <span class="more">サービスを見る</span>
+      </a></li>
+      <li><a class="card entry-card" href="#services">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="1.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 15l2.5 2.5L16 13"/></svg></span>
+        <span class="entry-tag">月次顧問</span>
+        <strong class="entry-ttl">毎月の会計・税務を相談したい方</strong>
+        <span class="entry-items"><span>毎月の巡回訪問</span><span>税務・会計・決算に関する業務</span><span>経営計画の策定支援</span></span>
+        <span class="more">サービスを見る</span>
+      </a></li>
+      <li><a class="card entry-card" href="#services">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="7" r="3"/><circle cx="17" cy="9" r="2.3"/><path d="M2 20c0-4 2.5-6 6-6s6 2 6 6"/><path d="M15 15c3 0 6 1.5 6 5"/></svg></span>
+        <span class="entry-tag">相続・承継</span>
+        <strong class="entry-ttl">相続・事業承継に備えたい方</strong>
+        <span class="entry-items"><span>資産譲渡・贈与・相続の事前対策と納税申告書の作成</span><span>事業承継対策</span></span>
+        <span class="more">サービスを見る</span>
+      </a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec reasons alt" aria-labelledby="h-reasons">
+  <div class="wrap">
+    <p class="kicker">Features</p>
+    <h2 id="h-reasons">選ばれる理由</h2>
+    <ol class="grid g4 reason-list">
+      <li class="reason">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></span>
+        <span class="num">01</span>
+        <h3>毎月の巡回訪問</h3>
+        <p>お客様と毎月面談し、会計資料並びに会計記録の適法性、正確性及び適時性を確認します。</p>
+      </li>
+      <li class="reason">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M2 20h20"/><path d="M8 13l2.5-3 2.5 2 3-4"/></svg></span>
+        <span class="num">02</span>
+        <h3>TKCシステムによる自計化</h3>
+        <p>「ＴＫＣ戦略財務情報システム（ＦＸシリーズ）」による自計化を支援します。</p>
+      </li>
+      <li class="reason">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7M9 17h5"/></svg></span>
+        <span class="num">03</span>
+        <h3>経営改善計画</h3>
+        <p>継続ＭＡＳシステムを使用した経営計画策定をご支援します。</p>
+      </li>
+      <li class="reason">
+        <span class="icon-wrap"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 20h18"/><path d="M6 20v-5M11 20v-9M16 20v-13"/><path d="M4 9l6-4 4 2 6-4"/></svg></span>
+        <span class="num">04</span>
+        <h3>黒字決算支援</h3>
+        <p>経営者の意思決定に役立つ情報、黒字決算につながる情報が入手できます。</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" id="services" aria-labelledby="h-services">
+  <div class="wrap">
+    <p class="kicker">Services</p>
+    <h2 id="h-services">サービス一覧</h2>
+    <ul class="grid g-svc svc-list">
+      <li class="card svc"><span class="num">01</span><h3>創業・独立の支援</h3><p class="muted">説明文<span class="tbc">【要確認】</span></p></li>
+      <li class="card svc"><span class="num">02</span><h3>税務・会計・決算に関する業務</h3><p>中小会計要領に準拠した信頼性の高い会計データを使用し、決算書と納税申告書を作成します。</p></li>
+      <li class="card svc"><span class="num">03</span><h3>税務申告書への書面添付</h3><p>関与３期目からは、「税理士法第３３条の２第１項に定める書面添付」を行います。</p></li>
+      <li class="card svc"><span class="num">04</span><h3>自計化システムの導入支援</h3><p>貴社の経理担当者が取引の入力に慣れるまで親身に操作指導を行います。</p></li>
+      <li class="card svc"><span class="num">05</span><h3>経営計画の策定支援</h3><p>継続ＭＡＳシステムを使用した経営計画の策定をご支援します。</p></li>
+      <li class="card svc"><span class="num">06</span><h3>資産譲渡・贈与・相続の事前対策と納税申告書の作成</h3><p class="muted">説明文<span class="tbc">【要確認】</span></p></li>
+      <li class="card svc"><span class="num">07</span><h3>事業承継対策</h3><p class="muted">説明文<span class="tbc">【要確認】</span></p></li>
+      <li class="card svc"><span class="num">08</span><h3>税務調査の立会い</h3><p class="muted">説明文<span class="tbc">【要確認】</span></p></li>
+      <li class="card svc"><span class="num">09</span><h3>保険指導</h3><p class="muted">説明文<span class="tbc">【要確認】</span></p></li>
+      <li class="card svc"><span class="num">10</span><h3>経営相談等</h3><p>毎月の面談等をとおして、お客様の強みや経営課題等を分析し、報告します。</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec alt" id="price" aria-labelledby="h-price">
+  <div class="wrap">
+    <p class="kicker">Price</p>
+    <h2 id="h-price">料金の目安 <span class="tbc">【要確認】</span></h2>
+    <p class="sec-lead">料金は現行サイトに記載がないため、枠のみ用意しています。</p>
+    <ul class="grid g3">
+      <li class="card price"><h3>プラン名 <span class="tbc">【要確認】</span></h3><p class="price-num">月額 ―― 円〜</p><p class="muted">対象・内容 <span class="tbc">【要確認】</span></p></li>
+      <li class="card price"><h3>プラン名 <span class="tbc">【要確認】</span></h3><p class="price-num">月額 ―― 円〜</p><p class="muted">対象・内容 <span class="tbc">【要確認】</span></p></li>
+      <li class="card price"><h3>プラン名 <span class="tbc">【要確認】</span></h3><p class="price-num">―― 円〜</p><p class="muted">対象・内容 <span class="tbc">【要確認】</span></p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="voice" aria-labelledby="h-voice">
+  <div class="wrap">
+    <p class="kicker">Voice</p>
+    <h2 id="h-voice">お客様の声・事例 <span class="tbc">【要確認】</span></h2>
+    <p class="sec-lead">お客様の声・事例は現行サイトに掲載がないため、枠のみ用意しています。</p>
+    <ul class="grid g3">
+      <li class="card voice"><p class="voice-body">ここにお客様の声が入ります。<span class="tbc">【要確認】</span></p><p class="muted">業種・お立場 <span class="tbc">【要確認】</span></p></li>
+      <li class="card voice"><p class="voice-body">ここにお客様の声が入ります。<span class="tbc">【要確認】</span></p><p class="muted">業種・お立場 <span class="tbc">【要確認】</span></p></li>
+      <li class="card voice"><p class="voice-body">ここに事例が入ります。<span class="tbc">【要確認】</span></p><p class="muted">業種・ご相談内容 <span class="tbc">【要確認】</span></p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec alt greeting" id="greeting" aria-labelledby="h-greeting">
+  <div class="wrap greeting-in">
+    <div class="ph greet-ph" role="img" aria-label="所長の写真（写真は未定・要確認）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4 21c0-5 3.5-7.5 8-7.5s8 2.5 8 7.5"/></svg><span>所長の写真<br>【要確認】</span></div>
+    <div class="greeting-text">
+      <p class="kicker">Message</p>
+      <h2 id="h-greeting">所長挨拶</h2>
+      <p class="greeting-lead">当事務所では、この激動の時代を中小企業が乗り切るために、黒字化支援、財務経営力の強化支援に取り組んでおります。</p>
+      <p>貴社を毎月訪問し、月次決算後の最新の経営成績、財政状態を分かりやすくご説明します。併せて、貴社の目標を明確にするため経営計画の策定をご支援します。これらは、企業規模が小さくても、企業の存続のためには必要なことです。</p>
+      <p class="sign"><span>所長</span>竹添 義之</p>
+      <p class="muted">税理士・保育士・宅地建物取引士</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="flow" aria-labelledby="h-flow">
+  <div class="wrap">
+    <p class="kicker">Flow</p>
+    <h2 id="h-flow">ご相談の流れ <span class="tbc">【要確認】</span></h2>
+    <p class="sec-lead">ステップ名は仮です。実際の進め方を確認のうえ差し替えます。</p>
+    <ol class="grid g4 flow-list">
+      <li class="flow"><span class="num">STEP 1</span><h3>お問合せ</h3><p class="muted">内容 <span class="tbc">【要確認】</span></p></li>
+      <li class="flow"><span class="num">STEP 2</span><h3>ご面談</h3><p class="muted">内容 <span class="tbc">【要確認】</span></p></li>
+      <li class="flow"><span class="num">STEP 3</span><h3>ご提案</h3><p class="muted">内容 <span class="tbc">【要確認】</span></p></li>
+      <li class="flow"><span class="num">STEP 4</span><h3>ご契約</h3><p class="muted">内容 <span class="tbc">【要確認】</span></p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec alt" id="news" aria-labelledby="h-news">
+  <div class="wrap narrow">
+    <p class="kicker">News</p>
+    <h2 id="h-news">お知らせ</h2>
+    <ul class="news-list">
+      <li><time>0000.00.00</time><span>お知らせのタイトルが入ります。<span class="tbc">【要確認】</span></span></li>
+      <li><time>0000.00.00</time><span>お知らせのタイトルが入ります。<span class="tbc">【要確認】</span></span></li>
+      <li><time>0000.00.00</time><span>お知らせのタイトルが入ります。<span class="tbc">【要確認】</span></span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="office" aria-labelledby="h-office">
+  <div class="wrap">
+    <p class="kicker">Office</p>
+    <h2 id="h-office">事務所概要とアクセス</h2>
+    <div class="office-in">
+      <dl class="office-dl">
+        <div><dt>事務所名</dt><dd>竹添義之税理士事務所</dd></div>
+        <div><dt>所長</dt><dd>竹添 義之</dd></div>
+        <div><dt>所在地</dt><dd>〒112-0012<br>東京都文京区大塚3-6-13 グランドメゾン茗荷谷2F</dd></div>
+        <div><dt>TEL</dt><dd><a href="tel:0359468718">03-5946-8718</a></dd></div>
+        <div><dt>FAX</dt><dd>03-5946-8719</dd></div>
+        <div><dt>所属団体</dt><dd>東京税理士会、ＴＫＣ全国会</dd></div>
+        <div><dt>営業時間</dt><dd><span class="tbc">【要確認】</span></dd></div>
+        <div><dt>アクセス</dt><dd>最寄り駅・経路 <span class="tbc">【要確認】</span></dd></div>
+      </dl>
+      <div class="map" role="img" aria-label="地図の表示枠（埋め込み方法は要確認）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span>地図 【要確認】<br>東京都文京区大塚3-6-13</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec contact" id="contact" aria-labelledby="h-contact">
+  <div class="wrap contact-in">
+    <div class="contact-head">
+      <p class="kicker">Contact</p>
+      <h2 id="h-contact">お問合せ</h2>
+      <p>当事務所のサービスに関するお問合せを受付けております。お急ぎの方はお手数ですがお電話ください。</p>
+      <a class="tel-big" href="tel:0359468718"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg><span>03-5946-8718</span></a>
+      <p class="muted-inv">FAX 03-5946-8719　受付時間 【要確認】</p>
+    </div>
+    <!-- フォームは見た目のみ（送信処理なし） -->
+    <form class="form" onsubmit="return false" aria-label="お問合せフォーム（デザイン確認用・送信はできません）">
+      <label><span>お名前 <em>必須</em></span><input type="text" name="name" autocomplete="name"></label>
+      <label>社名・屋号<input type="text" name="company" autocomplete="organization"></label>
+      <div class="form-2">
+        <label><span>電話番号 <em>必須</em></span><input type="tel" name="tel" autocomplete="tel"></label>
+        <label><span>メールアドレス <em>必須</em></span><input type="email" name="email" autocomplete="email"></label>
+      </div>
+      <label><span>お問合せ内容 <em>必須</em></span><select name="topic"><option value="">選択してください</option><option>創業・会社設立</option><option>経営助言</option><option>資金繰り・金融機関への対応</option><option>自計化システムの導入</option><option>経営改善計画策定</option><option>節税対策</option><option>贈与・相続対策・事業承継</option><option>その他・ご意見・要望など</option></select></label>
+      <label><span>お問合せ内容の詳細 <em>必須</em></span><textarea name="detail" rows="5"></textarea></label>
+      <label class="check"><input type="checkbox" name="agree"><span>個人情報の利用目的および取扱いについて同意する</span></label>
+      <button class="btn btn-primary btn-block" type="submit">入力内容を確認する</button>
+      <p class="form-note">※デザイン確認用のため送信はできません。</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="ft">
+  <div class="wrap">
+    <p class="ft-name">竹添義之税理士事務所</p>
+    <p>〒112-0012 東京都文京区大塚3-6-13 グランドメゾン茗荷谷2F<br>TEL 03-5946-8718 ／ FAX 03-5946-8719</p>
+    <p class="ft-copy">竹添義之税理士事務所は東京税理士会所属、ＴＫＣ全国会会員です。</p>
+  </div>
+</footer>
+
+<nav class="sp-bar" aria-label="お問合せ">
+  <a href="tel:0359468718" class="sp-tel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>電話する</a>
+  <a href="#contact" class="sp-cta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3 7l9 6 9-6"/></svg>無料相談・お問合せ</a>
+</nav>
+</body>
+</html>
